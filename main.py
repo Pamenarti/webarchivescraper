@@ -20,26 +20,30 @@ def fetch_site_links(site):
             total_size = 0
             link_count = 0
             last_update = time.time()
-            update_interval = 2  # Her 2 saniyede bir güncelle
+            update_interval = 1  # Her 1 saniyede bir güncelle
             
             print("\nVeriler {} dosyasına kaydediliyor...".format(filename))
             
-            with open(filename, "w", encoding="utf-8") as f:
-                for chunk in tqdm(response.iter_content(chunk_size=8192), desc="İndiriliyor ve kaydediliyor"):
-                    if chunk:
-                        chunk_content = chunk.decode('utf-8')
-                        f.write(chunk_content)
-                        total_size += len(chunk)
-                        
-                        # Yeni link sayısını hesapla
-                        new_links = chunk_content.count('\n')
-                        link_count += new_links
-                        
-                        # Her 2 saniyede bir güncelle
-                        current_time = time.time()
-                        if current_time - last_update >= update_interval:
-                            print("\rŞu ana kadar indirilen link sayısı: {:,} | Dosya boyutu: {:.2f} MB".format(link_count, total_size/1024/1024), end="", flush=True)
-                            last_update = current_time
+            # Daha büyük buffer boyutu kullanarak dosyaya yazalım
+            with open(filename, "wb", buffering=8192*16) as f:
+                with tqdm(desc="İndiriliyor ve kaydediliyor", unit='B', unit_scale=True) as pbar:
+                    for chunk in response.iter_content(chunk_size=8192*16):  # Daha büyük chunk boyutu
+                        if chunk:
+                            f.write(chunk)
+                            chunk_size = len(chunk)
+                            total_size += chunk_size
+                            pbar.update(chunk_size)
+                            
+                            # Yeni link sayısını hesapla
+                            new_links = chunk.count(b'\n')
+                            link_count += new_links
+                            
+                            # Her 1 saniyede bir güncelle
+                            current_time = time.time()
+                            if current_time - last_update >= update_interval:
+                                print("\rŞu ana kadar indirilen link sayısı: {:,} | Dosya boyutu: {:.2f} MB".format(
+                                    link_count, total_size/1024/1024), end="", flush=True)
+                                last_update = current_time
             
             # Son durumu göster
             print("\n\nİşlem tamamlandı!")
@@ -70,6 +74,7 @@ def fetch_site_links(site):
         print("Bir hata oluştu: {}".format(str(e)))
 
 if __name__ == "__main__":
+    print("Web Archive Link Arama Aracı")
     site = input("Linkleri çekilecek siteyi girin (örn: example.com): ")
     print("\n{} sitesinin linklerini çekme işlemi başlıyor...".format(site))
     start_time = time.time()
